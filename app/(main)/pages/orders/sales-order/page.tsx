@@ -127,6 +127,13 @@ const SalesOrder = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isSavingDetails, setIsSavingDetails] = useState(false);
   const [images, setImages] = useState<{itemImageSrc: string}[]>([]);
+    const [viewDialog, setViewDialog] = useState<{
+  visible: boolean;
+  item: Order['orderDetails'][number] | null;
+}>({
+  visible: false,
+  item: null,
+});
   const [pagination, setPagination] = useState({
     currentPage: 1,
     perPage: 20,
@@ -947,109 +954,24 @@ const SalesOrder = () => {
             
             <h5 className="m-0 mb-3">Order Items</h5>
 
-            {selectedOrder.orderDetails?.map((item) => (
-              <div key={item.id} className="mb-4 surface-50 p-3 border-round">
-                <div className="grid">
-                  <div className="col-6">
-                    <div className="field">
-                      <label>Item Ref</label>
-                      <p className="m-0 font-medium">{item.item_ref || 'Not Available'}</p>
-                    </div>
-                  </div>
-                  <div className="col-6">
-                    <div className="field">
-                      <label>Job Order No</label>
-                      <p className="m-0 font-medium">{item.order_id}</p>
-                    </div>
-                  </div>
-                  <div className="col-6">
-                    <div className="field">
-                      <label>Item Name</label>
-                      <p className="m-0 font-medium">{item.material?.name || 'Not Available'}</p>
-                    </div>
-                  </div>
-                  <div className="col-6">
-                    <div className="field">
-                      <label>Jobber Name</label>
-                      <p className="m-0 font-medium">{item.jobOrderDetails?.[0]?.adminSite?.sitename || 'Not assigned'}</p>
-                    </div>
-                  </div>
-                  <div className="col-6">
-                    <div className="field">
-                      <label>Trial Date</label>
-                      <p className="m-0 font-medium">
-                        {item.trial_date ? formatDate(new Date(item.trial_date)) : 'Not scheduled'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="col-6">
-                    <div className="field">
-                      <label>Amount</label>
-                      <p className="m-0 font-medium">₹ {item.item_amt || 0}</p>
-                    </div>
-                  </div>
-                  <div className="col-12 mt-2">
-                    <div className="grid align-items-start">
-                      <div className="col-9">
-                        <div className="field">
-                          <label>Notes</label>
-                          <p className="m-0 font-medium">{item.desc1 || 'No Notes Available'}</p>
+            
+                        <div className="grid">
+                            {selectedOrder.orderDetails?.map((item) => (
+                                <div key={item.id} className="col-12 md:col-6 lg:col-4">
+                                    <Card className="mb-3 shadow-2">
+                                        <div className="flex justify-content-between align-items-center w-full">
+                                            <p className="m-0 font-medium">{item.material?.name || 'Not Available'}</p>
+
+                                            <span className="text-primary cursor-pointer  flex align-items-center gap-1 hover:underline" onClick={() => setViewDialog({ visible: true, item })}>
+                                                <i className="pi pi-eye text-xs" />
+                                                <span className="text-sm">View</span>
+                                            </span>
+                                        </div>
+                                    </Card>
+                                   
+                                </div>
+                            ))}
                         </div>
-                      </div>
-                      <div className="col-3 flex justify-content-end pt-4">
-                        <Button 
-                          icon="pi pi-pencil" 
-                          onClick={() => handleEditOrderDetail(item)}
-                          className="p-button-rounded p-button"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="col-12 mt-2">
-                    <Button
-                      label={`Status (${item.orderStatus?.status_name || 'Unknown'})`}
-                      icon="pi pi-sync"
-                      onClick={() => {
-                        setSelectedDetail(item);
-                        setStatusSidebarVisible(true);
-                      }}
-                      severity={getStatusSeverity(item.orderStatus?.status_name) || undefined}
-                    />
-                  </div>
-
-                  {item?.image_url && item.image_url.length > 0 && (
-                    <div className="col-12 mt-2">
-                      <Button 
-                        label={`View Images (${item.image_url.length})`} 
-                        icon="pi pi-image" 
-                        className="p-button-outlined"
-                        onClick={() => handleImagePreview(item.image_url)}
-                      />
-                    </div>
-                  )}
-
-                  <div className="col-12 mt-2">
-                    <Button 
-                      label="View Measurement Details" 
-                      icon="pi pi-eye" 
-                      className="p-button-outlined"
-                      onClick={() => handleViewMeasurement(item)}
-                    />
-                  </div>
-
-                  <div className="col-12 mt-2">
-                    <Button 
-                      label="Update Status"
-                      icon="pi pi-pencil" 
-                      onClick={() => openItemActionSidebar(item)}
-                      className="w-full"
-                    />
-                  </div>
-                  <Divider />
-                </div>
-              </div>
-            ))}
           </div>
         ) : (
           <div className="flex justify-content-center align-items-center" style={{ height: '200px' }}>
@@ -1057,6 +979,93 @@ const SalesOrder = () => {
           </div>
         )}
       </Dialog>
+      <Dialog header={viewDialog.item?.material?.name || 'Not Available'} 
+                                            visible={viewDialog.visible} 
+                                            onHide={() => setViewDialog({ visible: false, item: null })} 
+                                            maximized={isMaximized} 
+            onMaximize={(e) => setIsMaximized(e.maximized)} 
+            className={isMaximized ? 'maximized-dialog' : ''} 
+            blockScroll
+                                            draggable={false} 
+                                            resizable={false}>
+      {viewDialog.item && (() => {
+  const item = viewDialog.item;
+
+  return (
+    <div className="p-fluid">
+      <div className="grid">
+        <div className="col-6">
+          <label>Item Ref</label>
+          <p className="m-0 font-medium">{item.item_ref || 'Not Available'}</p>
+        </div>
+        <div className="col-6">
+          <label>Job Order No</label>
+          <p className="m-0 font-medium">{item.order_id}</p>
+        </div>
+        <div className="col-6">
+          <label>Jobber Name</label>
+          <p className="m-0 font-medium">{item.jobOrderDetails?.[0]?.adminSite?.sitename || 'Not assigned'}</p>
+        </div>
+        <div className="col-6">
+          <label>Trial Date</label>
+          <p className="m-0 font-medium">
+            {item.trial_date ? formatDate(new Date(item.trial_date)) : 'Not scheduled'}
+          </p>
+        </div>
+        <div className="col-6">
+          <label>Amount</label>
+          <p className="m-0 font-medium">₹ {item.item_amt || 0}</p>
+        </div>
+        <div className="col-12">
+          <label>Notes</label>
+          <p className="m-0 font-medium">{item.desc1 || 'No Notes Available'}</p>
+        </div>
+        <div className="col-12 mt-2">
+          <Button
+            label={`Status (${item.orderStatus?.status_name || 'Unknown'})`}
+            icon="pi pi-sync"
+            onClick={() => {
+              setSelectedDetail(item);
+              setStatusSidebarVisible(true);
+            }}
+            severity={getStatusSeverity(item.orderStatus?.status_name) || undefined}
+          />
+        </div>
+
+        {item.image_url && item.image_url.length > 0 && (
+          <div className="col-12">
+            <Button
+              label={`View Images (${item.image_url.length})`}
+              icon="pi pi-image"
+              className="p-button-outlined mt-2"
+              onClick={() => handleImagePreview(item.image_url!)}
+            />
+          </div>
+        )}
+
+        <div className="col-12">
+          <Button
+            label="View Measurement Details"
+            icon="pi pi-eye"
+            className="p-button-outlined mt-2"
+            onClick={() => handleViewMeasurement(item)}
+          />
+        </div>
+        <div className="col-12">
+          <Button
+            label="Update Status"
+            icon="pi pi-pencil"
+            className="w-full mt-2"
+            onClick={() => openItemActionSidebar(item)}
+          />
+        </div>
+      </div>
+    </div>
+  );
+})()}
+
+
+                                    </Dialog>
 
       <Dialog 
         visible={imagePreviewVisible} 
