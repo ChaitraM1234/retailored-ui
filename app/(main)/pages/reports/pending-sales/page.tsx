@@ -15,6 +15,7 @@ import { useDebounce } from 'primereact/hooks';
 import { ReportsService } from '@/demo/service/reports.service';
 import { SalesOrderService } from '@/demo/service/sales-order.service';
 import FullPageLoader from '@/demo/components/FullPageLoader';
+import { Avatar } from 'primereact/avatar';
 
 interface JobOrderStatus {
   id: string;
@@ -78,6 +79,26 @@ const PendingSalesReport = () => {
     { id: 3, name: 'Completed' },
     { id: 4, name: 'Cancelled' }
   ];
+
+   const [longPressedCardId, setLongPressedCardId] = useState(null);
+
+    const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+
+   const longPressTimeout = useRef<NodeJS.Timeout | null>(null);
+
+const handlePointerDown = (id : any)=> {
+  longPressTimeout.current = setTimeout(() => {
+    setLongPressedCardId(id);
+  }, 200); // 600ms = long press
+};
+
+const handlePointerUp = () => {
+  if (longPressTimeout.current) {
+    clearTimeout(longPressTimeout.current);
+    longPressTimeout.current = null;
+  }
+};
+
 
   const fetchPendingOrders = useCallback(async (page: number, perPage: number, loadMore = false) => {
     try {
@@ -341,7 +362,7 @@ const PendingSalesReport = () => {
               className="col-12 md:col-6 lg:col-4"
               ref={index === orders.length - 1 ? lastOrderRef : null}
             >
-              <Card className="h-full">
+              {/* <Card className="h-full">
                 <div className="flex flex-column gap-2">
                   <div className="flex justify-content-between align-items-center">
                     <span className="font-bold">{item.customerName}</span>
@@ -414,7 +435,128 @@ const PendingSalesReport = () => {
                     </div>
                   </div>
                 </div>
-              </Card>
+              </Card> */}
+              <div
+  key={`${item.order_id}-${item.id}`}
+  ref={index === orders.length - 1 ? lastOrderRef : null}
+  onPointerDown={() => handlePointerDown(item.id)}
+  onPointerUp={handlePointerUp}
+  onPointerLeave={handlePointerUp}
+>
+                            <Card  className="w-80 shadow-2 p-3 border-round-xl">
+                                {/* Left section: Avatar + Name + ORD */}
+                                <div className="flex justify-content-between align-items-start">
+                                    {/* LEFT: Avatar + Name + ORD */}
+                                    <div className="flex gap-2">
+                                        <Avatar
+                                            label={item.customerName
+                                                .split(' ')
+                                                .map((word) => word[0])
+                                                .join('')
+                                                .toUpperCase()
+                                                .slice(0, 2)} // Dynamic initials
+                                            size="large"
+                                            shape="square"
+                                        />
+
+                                        <div className="flex flex-column">
+                                            <div className="flex align-items-center gap-2">
+                                                <i className="pi pi-user text-primary" />
+                                                <span className="font-bold">{item.customerName}</span>
+                                            </div>
+
+                                            <div className="flex align-items-center gap-1  ml-1 text-sm text-500">
+                                                <span>Order No:</span>
+                                                <span>{item.order_id}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* RIGHT: Status tag */}
+                                    <Tag value={item.status} severity={getStatusSeverity(item.status)} />
+                                </div>
+
+                                <div className="mt-2">
+                                    <div className="text-sm text-500 flex flex-wrap align-items-center gap-2 mt-2">
+                                        <span className="semi bold"></span> <i className="pi pi-android" />
+                                        {item.productName}
+                                    </div>
+                                </div>
+
+                                <Divider className="my-2" />
+
+
+                                <div className="flex flex-column gap-1">
+                                    <div className="text-sm text-500 flex flex-wrap align-items-center gap-2 mt-2">
+                                        <i className="pi pi-calendar" />
+                                        Delivery Date:
+                                        {item.deliveryDate ? formatDate(item.deliveryDate) : 'Not scheduled'}
+                                    </div>
+
+                                    <div className="text-sm text-500 flex flex-wrap align-items-center gap-2 mt-2">
+                                        JO Status:
+                                        <Tag value={item.jobOrderStatus.length > 0 ? item.jobOrderStatus[0].status_name : 'Pending'} severity={getStatusSeverity(item.jobOrderStatus.length > 0 ? item.jobOrderStatus[0].status_name : 'Pending')} />
+                                    </div>
+
+                            
+                                </div>
+
+                                {/* {showActions && (
+                                    <div className="mt-3 flex flex-column gap-2">
+                                        <Button label="Create Job Order" icon="pi pi-plus" severity="success" />
+                                        <Button label="Change Status" icon="pi pi-refresh" />
+                                        <Button label="Delete" icon="pi pi-trash" severity="danger" />
+                                        <Button label="View Sales Order" icon="pi pi-eye" />
+                                        <Button label="Close" onClick={handleCloseActions} outlined />
+                                    </div>
+                                )} */}
+
+                              
+
+    {longPressedCardId === item.id && (
+      <div className="flex flex-column gap-2 mt-3">
+        <Button 
+          label={item.jobOrderStatus.length > 0 ? 'View Job Order' : 'Create Job Order'}
+          icon={item.jobOrderStatus.length > 0 ? 'pi pi-eye' : 'pi pi-plus'}
+          onClick={() => handleCreateViewJO(item)}
+          className={`w-full ${item.jobOrderStatus.length > 0 ? 'p-button-info' : 'p-button-warning'}`}
+        />
+        
+        <Button
+          label="Change Status"
+          icon="pi pi-cog"
+          onClick={() => openStatusChangeDialog(item)}
+          className="w-full p-button-secondary"
+        />
+    
+        <div className="flex gap-2">
+          <Button 
+            label="View Sales Order"
+            icon="pi pi-eye"
+            onClick={() => viewSalesOrder(item.order_id)}
+            className="w-full"
+          />
+          <Button 
+            icon="pi pi-trash"
+            onClick={() => confirmDelete(item)}
+            className="p-button-danger"
+            style={{ width: '20%' }}
+            disabled={
+              item.jobOrderStatus.length > 0 &&
+              item.jobOrderStatus[item.jobOrderStatus.length - 1].status_name === 'Completed'
+            }
+          />
+           <Button 
+      label="Close" 
+      icon="pi pi-times" 
+      onClick={() => setLongPressedCardId(null)} 
+      className="p-button-secondary p-button-outlined w-full"
+    />
+        </div>
+      </div>
+    )}
+                            </Card>
+                        </div>
             </div>
           ))
         ) : (
