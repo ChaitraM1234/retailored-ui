@@ -73,32 +73,40 @@ const PendingSalesReport = () => {
   const observer = useRef<IntersectionObserver | null>(null);
   const lastOrderRef = useRef<HTMLDivElement>(null);
 
+const [longPressedCardId, setLongPressedCardId] = useState(null);
+const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+const isLongPressTriggred = useRef(false);
+const isPointerMoved = useRef(false); 
+
+ const handlePointerDown = (id: any) => {
+     isPointerMoved.current = false; 
+  isLongPressTriggred.current = false;
+  longPressTimer.current = setTimeout(() => {
+    setLongPressedCardId(id);
+    isLongPressTriggred.current = true;
+  }, 500); // 500ms long press
+};
+const handlePointerUp = (id: any) => {
+  if (longPressTimer.current) {
+    clearTimeout(longPressTimer.current);
+    longPressTimer.current = null;
+  }
+};
+const handlePointerMove = () =>{
+  isPointerMoved.current = true; 
+}
+const handleClick = (orderId: any) => {
+  if (!isLongPressTriggred.current && !isPointerMoved.current) {
+    viewSalesOrder(orderId);
+  }
+};
+
   const availableStatuses = [
     { id: 1, name: 'Pending' },
     { id: 2, name: 'In Progress' },
     { id: 3, name: 'Completed' },
     { id: 4, name: 'Cancelled' }
   ];
-
-   const [longPressedCardId, setLongPressedCardId] = useState(null);
-
-    const longPressTimer = useRef<NodeJS.Timeout | null>(null);
-
-   const longPressTimeout = useRef<NodeJS.Timeout | null>(null);
-
-const handlePointerDown = (id : any)=> {
-  longPressTimeout.current = setTimeout(() => {
-    setLongPressedCardId(id);
-  }, 200); // 600ms = long press
-};
-
-const handlePointerUp = () => {
-  if (longPressTimeout.current) {
-    clearTimeout(longPressTimeout.current);
-    longPressTimeout.current = null;
-  }
-};
-
 
   const fetchPendingOrders = useCallback(async (page: number, perPage: number, loadMore = false) => {
     try {
@@ -361,92 +369,15 @@ const handlePointerUp = () => {
               key={`${item.order_id}-${item.id}`} 
               className="col-12 md:col-6 lg:col-4"
               ref={index === orders.length - 1 ? lastOrderRef : null}
+               onPointerDown={() => handlePointerDown(item.id)}
+               onPointerUp={() => handlePointerUp(item.id)}
+               onPointerLeave={() => handlePointerUp(item.id)} // to handle if pointer leaves before up
+               onPointerMove={handlePointerMove}
+               onClick={()=>handleClick(item.order_id)}
+               style={{ cursor: 'pointer' }}
             >
-              {/* <Card className="h-full">
-                <div className="flex flex-column gap-2">
-                  <div className="flex justify-content-between align-items-center">
-                    <span className="font-bold">{item.customerName}</span>
-                    <Tag 
-                      value={item.status}
-                      severity={getStatusSeverity(item.status)} 
-                    />
-                  </div>
-                  
-                  <Divider className="my-2" />
-                  
-                  <div className="flex flex-column gap-1">
-                    <div className="flex justify-content-between">
-                      <span className="text-600">Product:</span>
-                      <span>{item.productName}</span>
-                    </div>
-                    <div className="flex justify-content-between">
-                      <span className="text-600">Reference:</span>
-                      <span>{item.productRef}</span>
-                    </div>
-                    <div className="flex justify-content-between">
-                      <span className="text-600">Delivery Date:</span>
-                      <span>{item.deliveryDate ? formatDate(item.deliveryDate) : 'Not scheduled'}</span>
-                    </div>
-                    <div className="flex justify-content-between">
-                      <span className="text-600">JO Status:</span>
-                     <Tag 
-                        value={item.jobOrderStatus.length > 0 
-                          ? item.jobOrderStatus[0].status_name
-                          : 'Pending'}
-                        severity={getStatusSeverity(item.jobOrderStatus.length > 0 
-                          ? item.jobOrderStatus[0].status_name 
-                          : 'Pending')}
-                      />
-                    </div>
-                  </div>
-                  
-                  <Divider className="my-2" />
-                  
-                  <div className="flex flex-column gap-2 mt-3">
-                    <Button 
-                      label={item.jobOrderStatus.length > 0 ? 'View Job Order' : 'Create Job Order'}
-                      icon={item.jobOrderStatus.length > 0 ? 'pi pi-eye' : 'pi pi-plus'}
-                      onClick={() => handleCreateViewJO(item)}
-                      className={`w-full ${item.jobOrderStatus.length > 0 ? 'p-button-info' : 'p-button-warning'}`}
-                    />
-                    
-                    <Button
-                        label="Change Status"
-                        icon="pi pi-cog"
-                        onClick={() => openStatusChangeDialog(item)}
-                        className="w-full p-button-secondary"
-                    />
-                
-                    <div className="flex gap-2">
-                        <Button 
-                            label="View Sales Order"
-                            icon="pi pi-eye"
-                            onClick={() => viewSalesOrder(item.order_id)}
-                            className="w-full"
-                        />
-                        <Button 
-                            icon="pi pi-trash"
-                            onClick={() => confirmDelete(item)}
-                            className="p-button-danger"
-                            style={{ width: '20%' }}
-                            disabled={item.jobOrderStatus.length > 0 && 
-                              item.jobOrderStatus[item.jobOrderStatus.length - 1].status_name === 'Completed'}
-                        />
-                    </div>
-                  </div>
-                </div>
-              </Card> */}
-              <div
-  key={`${item.order_id}-${item.id}`}
-  ref={index === orders.length - 1 ? lastOrderRef : null}
-  onPointerDown={() => handlePointerDown(item.id)}
-  onPointerUp={handlePointerUp}
-  onPointerLeave={handlePointerUp}
->
                             <Card  className="w-80 shadow-2 p-3 border-round-xl">
-                                {/* Left section: Avatar + Name + ORD */}
                                 <div className="flex justify-content-between align-items-start">
-                                    {/* LEFT: Avatar + Name + ORD */}
                                     <div className="flex gap-2">
                                         <Avatar
                                             label={item.customerName
@@ -454,11 +385,13 @@ const handlePointerUp = () => {
                                                 .map((word) => word[0])
                                                 .join('')
                                                 .toUpperCase()
-                                                .slice(0, 2)} // Dynamic initials
+                                                .slice(0, 2)} 
                                             size="large"
-                                            shape="square"
+                                            style={{
+                                            border: '1px solid black', 
+                                            padding: '2px'
+                                           }}
                                         />
-
                                         <div className="flex flex-column">
                                             <div className="flex align-items-center gap-2">
                                                 <i className="pi pi-user text-primary" />
@@ -471,8 +404,6 @@ const handlePointerUp = () => {
                                             </div>
                                         </div>
                                     </div>
-
-                                    {/* RIGHT: Status tag */}
                                     <Tag value={item.status} severity={getStatusSeverity(item.status)} />
                                 </div>
 
@@ -485,7 +416,6 @@ const handlePointerUp = () => {
 
                                 <Divider className="my-2" />
 
-
                                 <div className="flex flex-column gap-1">
                                     <div className="text-sm text-500 flex flex-wrap align-items-center gap-2 mt-2">
                                         <i className="pi pi-calendar" />
@@ -496,23 +426,8 @@ const handlePointerUp = () => {
                                     <div className="text-sm text-500 flex flex-wrap align-items-center gap-2 mt-2">
                                         JO Status:
                                         <Tag value={item.jobOrderStatus.length > 0 ? item.jobOrderStatus[0].status_name : 'Pending'} severity={getStatusSeverity(item.jobOrderStatus.length > 0 ? item.jobOrderStatus[0].status_name : 'Pending')} />
-                                    </div>
-
-                            
-                                </div>
-
-                                {/* {showActions && (
-                                    <div className="mt-3 flex flex-column gap-2">
-                                        <Button label="Create Job Order" icon="pi pi-plus" severity="success" />
-                                        <Button label="Change Status" icon="pi pi-refresh" />
-                                        <Button label="Delete" icon="pi pi-trash" severity="danger" />
-                                        <Button label="View Sales Order" icon="pi pi-eye" />
-                                        <Button label="Close" onClick={handleCloseActions} outlined />
-                                    </div>
-                                )} */}
-
-                              
-
+                                    </div>                          
+                                </div>                            
     {longPressedCardId === item.id && (
       <div className="flex flex-column gap-2 mt-3">
         <Button 
@@ -521,42 +436,33 @@ const handlePointerUp = () => {
           onClick={() => handleCreateViewJO(item)}
           className={`w-full ${item.jobOrderStatus.length > 0 ? 'p-button-info' : 'p-button-warning'}`}
         />
-        
         <Button
           label="Change Status"
           icon="pi pi-cog"
-          onClick={() => openStatusChangeDialog(item)}
+          onClick={(e) => {
+              e.stopPropagation(); 
+              openStatusChangeDialog(item)
+              setLongPressedCardId(null)}}
           className="w-full p-button-secondary"
         />
-    
-        <div className="flex gap-2">
           <Button 
-            label="View Sales Order"
-            icon="pi pi-eye"
-            onClick={() => viewSalesOrder(item.order_id)}
-            className="w-full"
-          />
-          <Button 
+          label="Delete"
             icon="pi pi-trash"
-            onClick={() => confirmDelete(item)}
-            className="p-button-danger"
+            onClick={(e) => {
+              e.stopPropagation();
+              confirmDelete(item)
+            setLongPressedCardId(null)}}
+            className="p-button-danger w-full"
             style={{ width: '20%' }}
             disabled={
               item.jobOrderStatus.length > 0 &&
               item.jobOrderStatus[item.jobOrderStatus.length - 1].status_name === 'Completed'
             }
           />
-           <Button 
-      label="Close" 
-      icon="pi pi-times" 
-      onClick={() => setLongPressedCardId(null)} 
-      className="p-button-secondary p-button-outlined w-full"
-    />
-        </div>
       </div>
     )}
-                            </Card>
-                        </div>
+                     </Card>
+                       
             </div>
           ))
         ) : (
